@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>3Dリング・ギャラリー (手前側の画像が反応)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3Dリング・ギャラリー (スマホ対応)</title>
     <style>
         body {
             margin: 0;
@@ -17,6 +18,7 @@
             overflow: hidden;
             user-select: none;
             cursor: grab;
+            touch-action: none; /* スマホでの画面スクロール等の誤作動を防ぐ */
         }
 
         body:active { cursor: grabbing; }
@@ -36,7 +38,6 @@
             transform: rotateX(-10deg) rotateY(0deg);
         }
 
-        /* 外側の3D位置用ボックス */
         .card {
             position: absolute;
             width: 200px;
@@ -45,7 +46,6 @@
             cursor: pointer;
         }
 
-        /* 内側の見た目・拡大用ボックス */
         .card-inner {
             width: 100%;
             height: 100%;
@@ -57,7 +57,6 @@
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
-        /* 【重要】「手前側」（.is-front-side）にあるカードにホバーした時だけ1.5倍拡大 */
         .card.is-front-side:hover .card-inner {
             transform: scale(1.5);
         }
@@ -74,7 +73,6 @@
             display: block;
         }
 
-        /* モーダル */
         .modal {
             position: fixed;
             top: 0; left: 0;
@@ -103,6 +101,8 @@
             font-size: 0.9rem;
             letter-spacing: 1px;
             pointer-events: none;
+            text-align: center;
+            padding: 0 20px;
         }
     </style>
 </head>
@@ -123,7 +123,7 @@
         <img id="modal-img" src="">
     </div>
 
-    <div class="hint">🎠 手前側のカードならどれでもホバーで拡大 / クリックで拡大表示</div>
+    <div class="hint">📱 指でスワイプして回転 / タップして拡大表示</div>
 
     <script>
         const carousel = document.getElementById('carousel');
@@ -135,7 +135,6 @@
         const angleStep = 360 / totalCards;
         const radius = 280;
 
-        // 初期配置（それぞれの角度を記録）
         const baseAngles = [];
         cards.forEach((card, index) => {
             const angle = index * angleStep;
@@ -144,7 +143,7 @@
         });
 
         let isDragging = false;
-        let isHovered = false; // 手前側のカードにホバーしているかどうかのフラグ
+        let isHovered = false;
         let isMoved = false;
         let startX = 0;
         let currentRotationY = 0;
@@ -152,18 +151,13 @@
         let currentSpeed = 0.2;
         const targetSpeed = 0.2;
 
-        // 1. 手前側（正面を中心とした±90度＝180度の範囲）にあるカードを特定する関数
         function updateFrontSideCards() {
             cards.forEach((card, index) => {
-                // リング全体の回転角度 + カード自体の初期角度
                 let totalAngle = (currentRotationY + baseAngles[index]) % 360;
                 if (totalAngle < 0) totalAngle += 360;
-
-                // 0度（正面）からの差分（0〜180度）
                 let diff = Math.abs(totalAngle);
                 if (diff > 180) diff = 360 - diff;
 
-                // 差分が90度以内（＝手前側の半円の中にある場合）
                 if (diff <= 90) {
                     card.classList.add('is-front-side');
                 } else {
@@ -172,9 +166,7 @@
             });
         }
 
-        // 2. 自動回転（慣性ブレーキ処理）
         function animate() {
-            // 手前側のカードにホバー中・ドラッグ中・モーダル表示中は回転停止
             const isStopping = isHovered || isDragging || modal.classList.contains('active');
             const target = isStopping ? 0 : targetSpeed;
 
@@ -185,49 +177,59 @@
                 carousel.style.transform = `rotateX(-10deg) rotateY(${currentRotationY}deg)`;
             }
 
-            // 毎フレーム手前側のカード判定を更新
             updateFrontSideCards();
-
             requestAnimationFrame(animate);
         }
         animate();
 
-        // 3. マウスホバー判定（.is-front-side が付いている手前のカードの上でのみ有効）
+        // --- マウスおよびタッチ共通の操作処理 ---
+        function startDrag(clientX) {
+            if (modal.classList.contains('active')) return;
+            isDragging = true;
+            isMoved = false;
+            startX = clientX;
+        }
+
+        function moveDrag(clientX) {
+            if (!isDragging) return;
+            const deltaX = clientX - startX;
+            if (Math.abs(deltaX) > 3) isMoved = true;
+
+            currentRotationY += deltaX * 0.4;
+            startX = clientX;
+            carousel.style.transform = `rotateX(-10deg) rotateY(${currentRotationY}deg)`;
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        // マウス用イベント
+        window.addEventListener('mousedown', (e) => startDrag(e.clientX));
+        window.addEventListener('mousemove', (e) => moveDrag(e.clientX));
+        window.addEventListener('mouseup', endDrag);
+
+        // スマホ（タッチ）用イベント
+        window.addEventListener('touchstart', (e) => {
+            startDrag(e.touches[0].clientX);
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            moveDrag(e.touches[0].clientX);
+        }, { passive: true });
+
+        window.addEventListener('touchend', endDrag);
+
+        // ホバー（PC用）
         cards.forEach(card => {
             card.addEventListener('mouseenter', () => {
-                if (card.classList.contains('is-front-side')) {
-                    isHovered = true;
-                }
+                if (card.classList.contains('is-front-side')) isHovered = true;
             });
             card.addEventListener('mouseleave', () => {
                 isHovered = false;
             });
-        });
 
-        // 4. ドラッグ操作
-        window.addEventListener('mousedown', (e) => {
-            if (modal.classList.contains('active')) return;
-            isDragging = true;
-            isMoved = false;
-            startX = e.clientX;
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const deltaX = e.clientX - startX;
-            if (Math.abs(deltaX) > 3) isMoved = true;
-
-            currentRotationY += deltaX * 0.4;
-            startX = e.clientX;
-            carousel.style.transform = `rotateX(-10deg) rotateY(${currentRotationY}deg)`;
-        });
-
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        // 5. クリックで拡大表示（手前側のカードのみモーダル表示）
-        cards.forEach(card => {
+            // クリック（およびスマホのタップ）で拡大表示
             card.addEventListener('click', () => {
                 if (isMoved || !card.classList.contains('is-front-side')) return;
                 modalImg.src = card.querySelector('img').src;
