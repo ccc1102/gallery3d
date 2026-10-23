@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3Dリング・ギャラリー (スマホ対応)</title>
+    <title>3Dリング・ギャラリー (スマホ画面サイズ最適化)</title>
     <style>
         body {
             margin: 0;
@@ -18,11 +18,12 @@
             overflow: hidden;
             user-select: none;
             cursor: grab;
-            touch-action: none; /* スマホでの画面スクロール等の誤作動を防ぐ */
+            touch-action: none;
         }
 
         body:active { cursor: grabbing; }
 
+        /* --- 1. PC用のサイズ設定 --- */
         .stage {
             width: 200px;
             height: 260px;
@@ -73,6 +74,23 @@
             display: block;
         }
 
+        /* --- 2. スマホ（画面幅768px以下）用の調整 --- */
+        @media (max-width: 768px) {
+            .stage {
+                width: 130px;
+                height: 170px;
+            }
+            .card {
+                width: 130px;
+                height: 170px;
+            }
+            /* スマホでは拡大率を1.3倍程度に抑えてはみ出しを防止 */
+            .card.is-front-side:hover .card-inner {
+                transform: scale(1.3);
+            }
+        }
+
+        /* モーダル */
         .modal {
             position: fixed;
             top: 0; left: 0;
@@ -87,7 +105,7 @@
 
         .modal.active { display: flex; }
         .modal img {
-            max-width: 80vw;
+            max-width: 90vw;
             max-height: 80vh;
             border-radius: 12px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.8);
@@ -98,11 +116,11 @@
             position: absolute;
             bottom: 30px;
             color: #9ca3af;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             letter-spacing: 1px;
             pointer-events: none;
             text-align: center;
-            padding: 0 20px;
+            width: 100%;
         }
     </style>
 </head>
@@ -123,7 +141,7 @@
         <img id="modal-img" src="">
     </div>
 
-    <div class="hint">📱 指でスワイプして回転 / タップして拡大表示</div>
+    <div class="hint">📱 スワイプで回転 / タップで拡大表示</div>
 
     <script>
         const carousel = document.getElementById('carousel');
@@ -133,14 +151,27 @@
 
         const totalCards = cards.length;
         const angleStep = 360 / totalCards;
-        const radius = 280;
+        
+        // 画面幅に応じて回転半径（radius）を動的に切り替える
+        function getRadius() {
+            return window.innerWidth <= 768 ? 170 : 280; // スマホなら170px、PCなら280px
+        }
 
         const baseAngles = [];
-        cards.forEach((card, index) => {
-            const angle = index * angleStep;
-            baseAngles.push(angle);
-            card.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
-        });
+
+        // 3D配置を設定する関数
+        function setupCards() {
+            const radius = getRadius();
+            cards.forEach((card, index) => {
+                const angle = index * angleStep;
+                baseAngles[index] = angle;
+                card.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
+            });
+        }
+        setupCards();
+
+        // 画面サイズが変更されたら半径を自動計算しなおす
+        window.addEventListener('resize', setupCards);
 
         let isDragging = false;
         let isHovered = false;
@@ -182,7 +213,7 @@
         }
         animate();
 
-        // --- マウスおよびタッチ共通の操作処理 ---
+        // 操作処理
         function startDrag(clientX) {
             if (modal.classList.contains('active')) return;
             isDragging = true;
@@ -204,23 +235,14 @@
             isDragging = false;
         }
 
-        // マウス用イベント
         window.addEventListener('mousedown', (e) => startDrag(e.clientX));
         window.addEventListener('mousemove', (e) => moveDrag(e.clientX));
         window.addEventListener('mouseup', endDrag);
 
-        // スマホ（タッチ）用イベント
-        window.addEventListener('touchstart', (e) => {
-            startDrag(e.touches[0].clientX);
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (e) => {
-            moveDrag(e.touches[0].clientX);
-        }, { passive: true });
-
+        window.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX), { passive: true });
+        window.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientX), { passive: true });
         window.addEventListener('touchend', endDrag);
 
-        // ホバー（PC用）
         cards.forEach(card => {
             card.addEventListener('mouseenter', () => {
                 if (card.classList.contains('is-front-side')) isHovered = true;
@@ -229,7 +251,6 @@
                 isHovered = false;
             });
 
-            // クリック（およびスマホのタップ）で拡大表示
             card.addEventListener('click', () => {
                 if (isMoved || !card.classList.contains('is-front-side')) return;
                 modalImg.src = card.querySelector('img').src;
