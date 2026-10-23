@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3Dリング・ギャラリー (スマホ画面サイズ最適化)</title>
+    <title>3Dリング・ギャラリー (初心者向けコード解説版)</title>
     <style>
         body {
             margin: 0;
@@ -14,16 +14,18 @@
             align-items: center;
             perspective: 1000px;
             font-family: sans-serif;
-            color: #fff;
+            color: #ffffff;
             overflow: hidden;
             user-select: none;
             cursor: grab;
             touch-action: none;
         }
 
-        body:active { cursor: grabbing; }
+        body:active {
+            cursor: grabbing;
+        }
 
-        /* --- 1. PC用のサイズ設定 --- */
+        /* --- 1. PC用の基本サイズ設定 --- */
         .stage {
             width: 200px;
             height: 260px;
@@ -54,10 +56,11 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            background: #000;
+            background: #000000;
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
+        /* 手前側にあるカードをホバー（マウスオーバー）した時のホバー効果 */
         .card.is-front-side:hover .card-inner {
             transform: scale(1.5);
         }
@@ -74,27 +77,31 @@
             display: block;
         }
 
-        /* --- 2. スマホ（画面幅768px以下）用の調整 --- */
+        /* --- 2. スマホ（画面幅768px以下）用のサイズ調整 --- */
         @media (max-width: 768px) {
             .stage {
                 width: 130px;
                 height: 170px;
             }
+
             .card {
                 width: 130px;
                 height: 170px;
             }
-            /* スマホでは拡大率を1.3倍程度に抑えてはみ出しを防止 */
+
+            /* スマホでは拡大率を1.3倍に抑える */
             .card.is-front-side:hover .card-inner {
                 transform: scale(1.3);
             }
         }
 
-        /* モーダル */
+        /* モーダル（拡大表示画面） */
         .modal {
             position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background: rgba(0, 0, 0, 0.85);
             display: none;
             justify-content: center;
@@ -103,12 +110,16 @@
             cursor: default;
         }
 
-        .modal.active { display: flex; }
+        /* モーダル表示状態のクラス */
+        .modal.active {
+            display: flex;
+        }
+
         .modal img {
             max-width: 90vw;
             max-height: 80vh;
             border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
             object-fit: contain;
         }
 
@@ -138,57 +149,84 @@
     </div>
 
     <div class="modal" id="modal">
-        <img id="modal-img" src="">
+        <img id="modal-img" src="" alt="拡大画像">
     </div>
 
     <div class="hint">📱 スワイプで回転 / タップで拡大表示</div>
 
     <script>
+        // HTML要素の取得
         const carousel = document.getElementById('carousel');
         const cards = document.querySelectorAll('.card');
         const modal = document.getElementById('modal');
         const modalImg = document.getElementById('modal-img');
 
+        // カードの総数と角度のステップを計算
         const totalCards = cards.length;
         const angleStep = 360 / totalCards;
-        
-        // 画面幅に応じて回転半径（radius）を動的に切り替える
+
+        // 状態管理用の変数
+        let isDragging = false;       // マウスや指でドラッグ中かどうか
+        let isHovered = false;        // カードの上にマウスが載っているか
+        let isMoved = false;          // ドラッグ中に一定以上動いたか（クリック判定用）
+        let startX = 0;               // 操作開始時のX座標
+        let currentRotationY = 0;     // 現在のカローセルのY軸回転角度
+
+        let currentSpeed = 0.2;       // 現在の回転スピード
+        const targetSpeed = 0.2;      // 通常時の目標回転スピード
+
+        const baseAngles = [];        // 各カードの基準となる初期角度
+
+        // ----------------------------------------------------
+        // 画面幅に応じて回転半径（radius）を計算して返す関数
+        // ----------------------------------------------------
         function getRadius() {
-            return window.innerWidth <= 768 ? 170 : 280; // スマホなら170px、PCなら280px
+            if (window.innerWidth <= 768) {
+                return 170; // スマホサイズの場合
+            } else {
+                return 280; // PCサイズの場合
+            }
         }
 
-        const baseAngles = [];
-
-        // 3D配置を設定する関数
+        // ----------------------------------------------------
+        // 3D空間にカードを円状に配置する関数
+        // ----------------------------------------------------
         function setupCards() {
             const radius = getRadius();
-            cards.forEach((card, index) => {
+
+            cards.forEach(function (card, index) {
                 const angle = index * angleStep;
                 baseAngles[index] = angle;
                 card.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
             });
         }
+
+        // 初期配置の実行
         setupCards();
 
-        // 画面サイズが変更されたら半径を自動計算しなおす
-        window.addEventListener('resize', setupCards);
+        // 画面サイズが変化したときにカードの位置を再計算する
+        window.addEventListener('resize', function () {
+            setupCards();
+        });
 
-        let isDragging = false;
-        let isHovered = false;
-        let isMoved = false;
-        let startX = 0;
-        let currentRotationY = 0;
-
-        let currentSpeed = 0.2;
-        const targetSpeed = 0.2;
-
+        // ----------------------------------------------------
+        // 手前側（カメラ側）にあるカードを判定してクラスを付与する関数
+        // ----------------------------------------------------
         function updateFrontSideCards() {
-            cards.forEach((card, index) => {
+            cards.forEach(function (card, index) {
+                // 現在の全体回転角を加味した角度を計算
                 let totalAngle = (currentRotationY + baseAngles[index]) % 360;
-                if (totalAngle < 0) totalAngle += 360;
-                let diff = Math.abs(totalAngle);
-                if (diff > 180) diff = 360 - diff;
 
+                if (totalAngle < 0) {
+                    totalAngle = totalAngle + 360;
+                }
+
+                let diff = Math.abs(totalAngle);
+                if (diff > 180) {
+                    diff = 360 - diff;
+                }
+
+                // 正面から左右90度以内のカードを「手前側」とする
                 if (diff <= 90) {
                     card.classList.add('is-front-side');
                 } else {
@@ -197,36 +235,64 @@
             });
         }
 
+        // ----------------------------------------------------
+        // 毎フレーム呼び出されるアニメーションループ関数
+        // ----------------------------------------------------
         function animate() {
+            // マウスホバー中、ドラッグ中、またはモーダル表示中は回転を停止する
             const isStopping = isHovered || isDragging || modal.classList.contains('active');
-            const target = isStopping ? 0 : targetSpeed;
 
-            currentSpeed += (target - currentSpeed) * 0.08;
+            let target = 0;
+            if (isStopping === true) {
+                target = 0;
+            } else {
+                target = targetSpeed;
+            }
+
+            // 滑らかに減速・加速させる計算（イージング）
+            currentSpeed = currentSpeed + (target - currentSpeed) * 0.08;
 
             if (Math.abs(currentSpeed) > 0.001) {
-                currentRotationY += currentSpeed;
+                currentRotationY = currentRotationY + currentSpeed;
                 carousel.style.transform = `rotateX(-10deg) rotateY(${currentRotationY}deg)`;
             }
 
             updateFrontSideCards();
+
+            // 次のフレームを描画リクエスト
             requestAnimationFrame(animate);
         }
+
+        // アニメーションの開始
         animate();
 
-        // 操作処理
+        // ----------------------------------------------------
+        // ドラッグ・スワイプ操作の共通処理
+        // ----------------------------------------------------
         function startDrag(clientX) {
-            if (modal.classList.contains('active')) return;
+            // モーダル表示中は操作を受け付けない
+            if (modal.classList.contains('active')) {
+                return;
+            }
+
             isDragging = true;
             isMoved = false;
             startX = clientX;
         }
 
         function moveDrag(clientX) {
-            if (!isDragging) return;
-            const deltaX = clientX - startX;
-            if (Math.abs(deltaX) > 3) isMoved = true;
+            if (isDragging === false) {
+                return;
+            }
 
-            currentRotationY += deltaX * 0.4;
+            const deltaX = clientX - startX;
+
+            // 少しでも大きく動いたら「ドラッグ（移動）した」とみなす
+            if (Math.abs(deltaX) > 3) {
+                isMoved = true;
+            }
+
+            currentRotationY = currentRotationY + deltaX * 0.4;
             startX = clientX;
             carousel.style.transform = `rotateX(-10deg) rotateY(${currentRotationY}deg)`;
         }
@@ -235,30 +301,71 @@
             isDragging = false;
         }
 
-        window.addEventListener('mousedown', (e) => startDrag(e.clientX));
-        window.addEventListener('mousemove', (e) => moveDrag(e.clientX));
-        window.addEventListener('mouseup', endDrag);
+        // --- マウス操作用イベント ---
+        window.addEventListener('mousedown', function (e) {
+            startDrag(e.clientX);
+        });
 
-        window.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX), { passive: true });
-        window.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientX), { passive: true });
-        window.addEventListener('touchend', endDrag);
+        window.addEventListener('mousemove', function (e) {
+            moveDrag(e.clientX);
+        });
 
-        cards.forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                if (card.classList.contains('is-front-side')) isHovered = true;
+        window.addEventListener('mouseup', function () {
+            endDrag();
+        });
+
+        // --- タッチ操作用イベント (スマホ等) ---
+        window.addEventListener('touchstart', function (e) {
+            startDrag(e.touches[0].clientX);
+        }, { passive: true });
+
+        window.addEventListener('touchmove', function (e) {
+            moveDrag(e.touches[0].clientX);
+        }, { passive: true });
+
+        window.addEventListener('touchend', function () {
+            endDrag();
+        });
+
+        // ----------------------------------------------------
+        // 各カードごとのクリック・ホバーイベント
+        // ----------------------------------------------------
+        cards.forEach(function (card) {
+            // マウスが入った時
+            card.addEventListener('mouseenter', function () {
+                if (card.classList.contains('is-front-side')) {
+                    isHovered = true;
+                }
             });
-            card.addEventListener('mouseleave', () => {
+
+            // マウスが外れた時
+            card.addEventListener('mouseleave', function () {
                 isHovered = false;
             });
 
-            card.addEventListener('click', () => {
-                if (isMoved || !card.classList.contains('is-front-side')) return;
-                modalImg.src = card.querySelector('img').src;
+            // クリック（またはタップ）された時
+            card.addEventListener('click', function () {
+                // ドラッグ移動中や、手前側ではないカードのクリックは無視する
+                if (isMoved === true) {
+                    return;
+                }
+                if (card.classList.contains('is-front-side') === false) {
+                    return;
+                }
+
+                // モーダルにクリックしたカードの画像を設定して表示する
+                const imageElement = card.querySelector('img');
+                modalImg.src = imageElement.src;
                 modal.classList.add('active');
             });
         });
 
-        modal.addEventListener('click', () => modal.classList.remove('active'));
+        // ----------------------------------------------------
+        // モーダル全体をクリックしたときに非表示（閉じる）にする
+        // ----------------------------------------------------
+        modal.addEventListener('click', function () {
+            modal.classList.remove('active');
+        });
     </script>
 </body>
 </html>
