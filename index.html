@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3Dリング・ギャラリー (初心者向けコード解説版)</title>
+    <title>3Dリング・ギャラリー (通常のfor文版)</title>
     <style>
         body {
             margin: 0;
@@ -190,15 +190,17 @@
 
         // ----------------------------------------------------
         // 3D空間にカードを円状に配置する関数
+        // （通常の for 文を使用）
         // ----------------------------------------------------
         function setupCards() {
             const radius = getRadius();
 
-            cards.forEach(function (card, index) {
-                const angle = index * angleStep;
-                baseAngles[index] = angle;
+            for (let i = 0; i < cards.length; i++) {
+                const card = cards[i];
+                const angle = i * angleStep;
+                baseAngles[i] = angle;
                 card.style.transform = `rotateY(${angle}deg) translateZ(${radius}px)`;
-            });
+            }
         }
 
         // 初期配置の実行
@@ -211,11 +213,14 @@
 
         // ----------------------------------------------------
         // 手前側（カメラ側）にあるカードを判定してクラスを付与する関数
+        // （通常の for 文を使用）
         // ----------------------------------------------------
         function updateFrontSideCards() {
-            cards.forEach(function (card, index) {
+            for (let i = 0; i < cards.length; i++) {
+                const card = cards[i];
+
                 // 現在の全体回転角を加味した角度を計算
-                let totalAngle = (currentRotationY + baseAngles[index]) % 360;
+                let totalAngle = (currentRotationY + baseAngles[i]) % 360;
 
                 if (totalAngle < 0) {
                     totalAngle = totalAngle + 360;
@@ -232,7 +237,7 @@
                 } else {
                     card.classList.remove('is-front-side');
                 }
-            });
+            }
         }
 
         // ----------------------------------------------------
@@ -328,9 +333,12 @@
         });
 
         // ----------------------------------------------------
-        // 各カードごとのクリック・ホバーイベント
+        // 各カードごとのクリック・ホバーイベントの設定
+        // （通常の for 文を使用）
         // ----------------------------------------------------
-        cards.forEach(function (card) {
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+
             // マウスが入った時
             card.addEventListener('mouseenter', function () {
                 if (card.classList.contains('is-front-side')) {
@@ -358,7 +366,7 @@
                 modalImg.src = imageElement.src;
                 modal.classList.add('active');
             });
-        });
+        }
 
         // ----------------------------------------------------
         // モーダル全体をクリックしたときに非表示（閉じる）にする
